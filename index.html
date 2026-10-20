@@ -24,13 +24,13 @@
     <span><b id="statMinutes">0</b> min</span>
   </header>
 
-  <section class="stage" aria-live="polite">
+  <section class="stage">
     <div class="orb-wrap">
       <div class="orb" id="orb"></div>
       <div class="orb-ring" aria-hidden="true"></div>
       <div class="readout">
-        <div class="time" id="time">5:00</div>
-        <div class="cue" id="cue">Ready</div>
+        <div class="time" id="time" role="timer" aria-label="Time remaining">5:00</div>
+        <div class="cue" id="cue" aria-live="polite">Ready</div>
       </div>
     </div>
   </section>

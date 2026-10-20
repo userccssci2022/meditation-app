@@ -199,7 +199,8 @@
   function setState(s) {
     state = s; app.dataset.state = s;
     startBtn.textContent = { idle: 'Begin', running: 'Pause', paused: 'Resume', done: 'Again' }[s];
-    endBtn.hidden = !(s === 'running' || s === 'paused');
+    const inSession = s === 'running' || s === 'paused';
+    endBtn.hidden = !inSession; $('settings').inert = inSession;
   }
   function start() {
     totalMs = settings.minutes * 60000; remainingMs = totalMs; elapsedBefore = 0;
