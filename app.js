@@ -82,66 +82,74 @@
     const b = e.target.closest('button[data-pattern]'); if (!b) return;
     settings.pattern = b.dataset.pattern; save(SKEY, settings); renderSettings();
   });
-  chimeToggle.addEventListener('change', () => { settings.chime = chimeToggle.checked; save(SKEY, settings); });
+  chimeToggle.addEventListener('change', () => { settings.chime = chimeToggle.checked; save(SKEY, settings); audio(); scheduleEnd(); });
   toneToggle.addEventListener('change', () => {
-    settings.tone = toneToggle.checked; save(SKEY, settings);
+    settings.tone = toneToggle.checked; save(SKEY, settings); audio();
     if (state === 'running') settings.tone ? toneOn() : toneOff();
   });
 
-  // ---------- audio (Web Audio, created on first tap for iOS) ----------
-  let ctx = null, master = null, tone = null;
-  function ensureAudio() {
+  // ---------- audio (Web Audio, one shared context, resumed on every tap for iOS) ----------
+  // iOS can leave the context 'suspended' or 'interrupted' (screen lock, background); only a tap brings it back.
+  // The end chime lives on the audio clock and is re-synced to the wall-clock timer whenever the clock (re)starts.
+  let ctx = null, master = null, tone = null, endChime = null;
+  function audio() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     if (!ctx) {
       ctx = new AC();
-      master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+      master = ctx.createGain(); master.gain.value = 0.8;
+      master.connect(ctx.destination);
+      ctx.onstatechange = () => { if (ctx.state === 'running' && state === 'running') scheduleEnd(); };
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
     return ctx;
   }
-  // Singing-bowl style chime: a few inharmonic partials, soft attack, long decay.
-  function chime(strikes = 1) {
-    if (!settings.chime || !ensureAudio()) return;
-    const base = 432;
-    for (let k = 0; k < strikes; k++) {
-      const t0 = ctx.currentTime + 0.05 + k * 1.6;
-      [[1, .32, 6], [2.76, .12, 3.5], [5.4, .05, 2], [1.003, .18, 6]].forEach(([ratio, amp, dur]) => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = 'sine'; o.frequency.value = base * ratio;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(amp, t0 + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-        o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.1);
-      });
-    }
-  }
-  function toneOn() {
-    if (tone || !ensureAudio()) return;
-    const g = ctx.createGain(), lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 420;
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 3);
-    const oscs = [110, 164.81, 220.4].map((f, i) => {
-      const o = ctx.createOscillator(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = f;
-      const og = ctx.createGain(); og.gain.value = [0.6, 0.3, 0.15][i];
-      o.connect(og); og.connect(lp); o.start(); return o;
+  // Soft bell: sine partials, quick attack, 2–4 s exponential decay. Partials sum to 0.37, so overlaps can't clip.
+  function bell(t0) {
+    return [[432, .2, 4], [433.3, .1, 4], [1192, .05, 2.2], [2333, .015, 1.2]].map(([f, amp, dur]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(amp, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.05);
+      return o;
     });
-    // very slow swell so the drone breathes
-    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.08; lfoGain.gain.value = 0.015;
-    lfo.connect(lfoGain); lfoGain.connect(g.gain); lfo.start();
-    lp.connect(g); g.connect(master);
-    tone = { g, oscs: [...oscs, lfo] };
+  }
+  function startChime() { if (settings.chime && audio()) bell(ctx.currentTime + 0.05); }
+  function cancelEnd() {
+    if (endChime && endChime.at > ctx.currentTime) endChime.nodes.forEach((o) => o.stop());
+    endChime = null;
+  }
+  function scheduleEnd() {
+    if (!ctx) return;
+    cancelEnd();
+    if (!settings.chime || state !== 'running') return;
+    const at = ctx.currentTime + Math.max(0, (endAt - Date.now()) / 1000);
+    endChime = { at, nodes: [...bell(at), ...bell(at + 1.6)] };
+  }
+  // Soft pad: two detuned low sines, lowpassed, very low level, slow swell, 3 s fades.
+  function toneOn() {
+    if (tone || !audio()) return;
+    const t = ctx.currentTime;
+    const out = ctx.createGain(), swell = ctx.createGain(), lp = ctx.createBiquadFilter();
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(0.0125, t + 3);
+    lp.type = 'lowpass'; lp.frequency.value = 400; lp.Q.value = 0.5;
+    const oscs = [220, 220.6].map((f) => { const o = ctx.createOscillator(); o.frequency.value = f; o.connect(lp); o.start(t); return o; });
+    const lfo = ctx.createOscillator(), depth = ctx.createGain();
+    lfo.frequency.value = 0.07; depth.gain.value = 0.25;
+    lfo.connect(depth); depth.connect(swell.gain); lfo.start(t);
+    lp.connect(swell); swell.connect(out); out.connect(master);
+    tone = { out, nodes: [...oscs, lfo] };
   }
   function toneOff() {
     if (!tone) return;
-    const { g, oscs } = tone; tone = null;
-    const now = ctx.currentTime;
-    g.gain.cancelScheduledValues(now);
-    g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), now);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
-    oscs.forEach((o) => o.stop(now + 1.6));
+    const { out, nodes } = tone; tone = null;
+    const t = ctx.currentTime;
+    out.gain.cancelScheduledValues(t);
+    out.gain.setValueAtTime(out.gain.value, t);
+    out.gain.linearRampToValueAtTime(0, t + 2.5);
+    nodes.forEach((o) => o.stop(t + 2.6));
   }
 
   // ---------- wake lock ----------
@@ -152,7 +160,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       if (state === 'running') { lockScreen(); tick(); }
-      if (ctx && ctx.state === 'suspended' && state === 'running') ctx.resume();
+      if (ctx && ctx.state !== 'running' && state === 'running') ctx.resume().catch(() => {});
     }
   });
 
@@ -194,16 +202,16 @@
     endBtn.hidden = !(s === 'running' || s === 'paused');
   }
   function start() {
-    ensureAudio();
     totalMs = settings.minutes * 60000; remainingMs = totalMs; elapsedBefore = 0;
     phaseIdx = 0;
     resume(true);
   }
   function resume(fresh = false) {
-    ensureAudio();
+    audio();
     endAt = Date.now() + remainingMs; startedAt = Date.now();
     setState('running');
-    if (fresh) chime(1);
+    if (fresh) startChime();
+    scheduleEnd();
     if (settings.tone) toneOn();
     lockScreen();
     clearInterval(tickId); tickId = setInterval(tick, 250); tick();
@@ -215,19 +223,19 @@
   function pause() {
     remainingMs = Math.max(0, endAt - Date.now());
     elapsedBefore += Date.now() - startedAt;
-    clearInterval(tickId); setState('paused'); stopBreathing('Paused'); toneOff(); unlockScreen();
+    clearInterval(tickId); setState('paused'); stopBreathing('Paused'); toneOff(); unlockScreen(); audio(); cancelEnd();
   }
   function sat() { return (elapsedBefore + (state === 'running' ? Date.now() - startedAt : 0)) / 1000; }
   function finish() {
     const secs = Math.min(sat(), totalMs / 1000);
     clearInterval(tickId); timeEl.textContent = '0:00';
     setState('done'); stopBreathing('Complete'); toneOff(); unlockScreen();
-    chime(2); logSession(secs);
+    logSession(secs);
   }
   function end() {
     const secs = sat();
     state = 'idle';
-    clearInterval(tickId); toneOff(); unlockScreen();
+    clearInterval(tickId); toneOff(); unlockScreen(); cancelEnd();
     logSession(secs);
     resetToIdle();
   }
