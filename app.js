@@ -203,12 +203,11 @@
   }
   function start() {
     totalMs = settings.minutes * 60000; remainingMs = totalMs; elapsedBefore = 0;
-    phaseIdx = 0;
     resume(true);
   }
   function resume(fresh = false) {
     audio();
-    endAt = Date.now() + remainingMs; startedAt = Date.now();
+    endAt = Date.now() + remainingMs; startedAt = Date.now(); phaseIdx = 0;
     setState('running');
     if (fresh) startChime();
     scheduleEnd();
