@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Still</title>
+<meta name="description" content="A quiet meditation timer with a breathing guide.">
+<meta name="theme-color" content="#0f1416">
+<meta name="color-scheme" content="dark light">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Still">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app" id="app" data-state="idle">
+  <header class="stats" aria-label="Your practice">
+    <span><b id="statStreak">0</b> day streak</span>
+    <span><b id="statCount">0</b> sessions</span>
+    <span><b id="statMinutes">0</b> min</span>
+  </header>
+
+  <section class="stage" aria-live="polite">
+    <div class="orb-wrap">
+      <div class="orb" id="orb"></div>
+      <div class="orb-ring" aria-hidden="true"></div>
+      <div class="readout">
+        <div class="time" id="time">5:00</div>
+        <div class="cue" id="cue">Ready</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="controls" id="settings">
+    <div class="group">
+      <h2 class="label" id="durLabel">Length</h2>
+      <div class="chips" role="radiogroup" aria-labelledby="durLabel" id="durations">
+        <button type="button" role="radio" data-min="3">3</button>
+        <button type="button" role="radio" data-min="5">5</button>
+        <button type="button" role="radio" data-min="10">10</button>
+        <button type="button" role="radio" data-min="15">15</button>
+        <button type="button" role="radio" data-min="20">20</button>
+        <label class="custom">
+          <span class="sr">Custom minutes</span>
+          <input type="number" inputmode="numeric" min="1" max="180" placeholder="Custom" id="customMin">
+        </label>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2 class="label" id="patLabel">Breathing</h2>
+      <div class="chips wide" role="radiogroup" aria-labelledby="patLabel" id="patterns">
+        <button type="button" role="radio" data-pattern="calm">Calm 5·5</button>
+        <button type="button" role="radio" data-pattern="box">Box 4·4·4·4</button>
+        <button type="button" role="radio" data-pattern="478">4·7·8</button>
+        <button type="button" role="radio" data-pattern="none">Off</button>
+      </div>
+    </div>
+
+    <div class="group row">
+      <label class="toggle"><input type="checkbox" id="chimeToggle" checked><span>Chimes</span></label>
+      <label class="toggle"><input type="checkbox" id="toneToggle"><span>Soft tone</span></label>
+    </div>
+  </section>
+
+  <footer class="actions">
+    <button type="button" class="secondary" id="endBtn" hidden>End</button>
+    <button type="button" class="primary" id="startBtn">Begin</button>
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
