@@ -113,3 +113,43 @@ button, input { font: inherit; color: inherit; }
   .orb { transition-property: opacity; transition-duration: .8s; transform: scale(.8) !important; }
   .controls { transition: none; }
 }
+
+/* ============ Meadow theme (painted background) ============
+   Shade only where text sits: a sky wash behind the stats, a frosted lens behind the timer,
+   ground fog behind the controls. The rest of the painting stays untouched. */
+:root {
+  --bg: #2f5a3a; --text: #fbf5e6; --muted: #efe6cf; --lamp: #fbe9c2; --lamp-dim: rgba(251, 233, 194, .16);
+  --line: rgba(251, 241, 214, .62); --chip: rgba(22, 40, 30, .42); --radius: 16px;
+}
+html, body { background: var(--bg); }
+.scene { position: fixed; inset: -24px; background: url(meadow.webp) 68% 50% / cover no-repeat; z-index: 0; animation: drift 80s ease-in-out infinite alternate; }
+@keyframes drift { from { transform: translate3d(-10px, 0, 0); } to { transform: translate3d(10px, -6px, 0); } }
+.scene::before { content: ""; position: absolute; inset: 0 0 auto; height: 150px; background: linear-gradient(rgba(16, 40, 68, .66), rgba(16, 40, 68, .3) 55%, rgba(16, 40, 68, 0)); }
+.app { position: relative; z-index: 1; }
+
+.stats { color: var(--muted); }
+.orb-wrap::before { content: ""; position: absolute; inset: -6px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 44, 72, .34) 0 55%, rgba(16, 44, 72, .2) 100%);
+  -webkit-backdrop-filter: blur(12px) brightness(.5) saturate(1.2); backdrop-filter: blur(12px) brightness(.5) saturate(1.2); }
+.orb-ring { border-color: rgba(251, 241, 214, .55); }
+.orb { background: rgba(251, 233, 194, .1); border: 1.5px solid rgba(251, 236, 200, .9); }
+[data-state="done"] .orb { background: rgba(251, 222, 160, .16); }
+.time { font-weight: 300; }
+.cue, [data-state="running"] .cue, [data-state="done"] .cue { color: #fde7b8; }
+
+/* one frosted panel for the settings; the painting above it stays clear */
+.controls { margin: 0 -8px 12px; padding: 14px 12px 6px; border-radius: 22px; border: 1px solid rgba(251, 241, 214, .2);
+  background: rgba(20, 40, 28, .26); -webkit-backdrop-filter: blur(14px) brightness(.5) saturate(1.15); backdrop-filter: blur(14px) brightness(.5) saturate(1.15); }
+.chips button, .custom input { background: var(--chip); border-color: var(--line); }
+.secondary { background: var(--chip); border-color: var(--line); -webkit-backdrop-filter: blur(12px) brightness(.55); backdrop-filter: blur(12px) brightness(.55); }
+.custom input::placeholder { color: var(--muted); }
+.chips [aria-checked="true"], .custom input.active { color: #24402c; background: rgba(251, 245, 228, .92); border-color: #fbf5e6; }
+.toggle span::before { background-color: var(--chip); }
+.toggle input:checked + span::before { border-color: #fbf5e6; background: var(--chip) radial-gradient(circle at 27px 50%, #fbf5e6 7px, transparent 7.5px); }
+.primary { background: #f7efdb; color: #23402c; }
+.secondary { color: var(--text); }
+.label { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .scene { animation: none; } }
+@media (prefers-reduced-transparency: reduce) {
+  .orb-wrap::before, .controls, .secondary { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgba(22, 40, 30, .86); }
+}
