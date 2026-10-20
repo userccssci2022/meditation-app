@@ -50,7 +50,7 @@ button, input { font: inherit; color: inherit; }
   background: var(--lamp-dim);
   border: 1px solid var(--lamp);
   transform: scale(.55);
-  transition-property: transform, opacity;
+  transition-property: transform, opacity, background-color;
   transition-timing-function: cubic-bezier(.45, 0, .55, 1);
   transition-duration: 1.2s;
 }
@@ -60,7 +60,8 @@ button, input { font: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .cue { margin-top: 2px; font-size: 15px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; min-height: 1.4em; }
-[data-state="running"] .cue { color: var(--lamp); }
+[data-state="running"] .cue, [data-state="done"] .cue { color: var(--lamp); }
+[data-state="done"] .orb { background: rgba(224, 169, 109, .3); }
 
 .controls { display: grid; gap: 18px; padding: 8px 0 18px; transition: opacity .4s; }
 [data-state="running"] .controls, [data-state="paused"] .controls { opacity: 0; }

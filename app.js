@@ -47,13 +47,14 @@
     $('statStreak').textContent = streak;
     $('statCount').textContent = history.length;
     $('statMinutes').textContent = Math.round(history.reduce((a, h) => a + h.s, 0) / 60);
+    return streak;
   }
   function logSession(seconds) {
-    if (seconds < 60) return; // under a minute doesn't count
+    if (seconds < 60) return 0; // under a minute doesn't count
     history.push({ d: localDate(), s: Math.round(seconds), t: Date.now() });
     if (history.length > 2000) history = history.slice(-2000);
     save(HKEY, history);
-    renderStats();
+    return renderStats();
   }
 
   // ---------- settings UI ----------
@@ -218,7 +219,7 @@
     // let the opening chime land before the first inhale
     clearTimeout(phaseTimer);
     phaseTimer = setTimeout(runPhase, fresh ? 1500 : 0);
-    if (fresh) cueEl.textContent = 'Settle';
+    if (fresh) { cueEl.textContent = 'Settle'; setOrb(.55, 1.2); }
   }
   function pause() {
     remainingMs = Math.max(0, endAt - Date.now());
@@ -228,9 +229,12 @@
   function sat() { return (elapsedBefore + (state === 'running' ? Date.now() - startedAt : 0)) / 1000; }
   function finish() {
     const secs = Math.min(sat(), totalMs / 1000);
-    clearInterval(tickId); timeEl.textContent = '0:00';
-    setState('done'); stopBreathing('Complete'); toneOff(); unlockScreen();
-    logSession(secs);
+    clearInterval(tickId); clearTimeout(phaseTimer);
+    setState('done'); toneOff(); unlockScreen();
+    const streak = logSession(secs);
+    timeEl.textContent = secs < 60 ? '<1 min' : `${Math.round(secs / 60)} min`;
+    cueEl.textContent = streak ? `Complete · ${streak}-day streak` : 'Complete';
+    setOrb(1, 2.4);
   }
   function end() {
     const secs = sat();
