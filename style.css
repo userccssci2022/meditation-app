@@ -144,8 +144,9 @@ html, body { background: var(--bg); }
 .secondary { background: var(--chip); border-color: var(--line); -webkit-backdrop-filter: blur(12px) brightness(.55); backdrop-filter: blur(12px) brightness(.55); }
 .custom input::placeholder { color: var(--muted); }
 .chips [aria-checked="true"], .custom input.active { color: #24402c; background: rgba(251, 245, 228, .92); border-color: #fbf5e6; }
-.toggle span::before { background-color: var(--chip); }
-.toggle input:checked + span::before { border-color: #fbf5e6; background: var(--chip) radial-gradient(circle at 27px 50%, #fbf5e6 7px, transparent 7.5px); }
+/* off: hollow track, faint knob on the left. on: meadow-green filled track, solid cream knob on the right */
+.toggle span::before { border-color: rgba(251, 241, 214, .38); background: rgba(14, 26, 18, .3) radial-gradient(circle at 11px 50%, rgba(251, 241, 214, .4) 6px, transparent 6.5px); }
+.toggle input:checked + span::before { border-color: #fbf5e6; background: #5f8a4a radial-gradient(circle at 27px 50%, #fffaf0 7.5px, transparent 8px); }
 .primary { background: #f7efdb; color: #23402c; }
 .secondary { color: var(--text); }
 .label { color: var(--muted); }
