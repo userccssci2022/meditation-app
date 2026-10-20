@@ -11,13 +11,6 @@
   --radius: 10px;
   color-scheme: dark;
 }
-@media (prefers-color-scheme: light) {
-  :root.auto {
-    --bg: #eceae6; --surface: #e1ded8; --line: #cfcac2; --text: #1d2326; --muted: #5f6a6e;
-    --lamp: #b8742f; --lamp-dim: rgba(184, 116, 47, .16);
-    color-scheme: light;
-  }
-}
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); }
 body {
@@ -73,14 +66,13 @@ button, input { font: inherit; color: inherit; }
 [data-state="running"] .controls, [data-state="paused"] .controls { opacity: .25; pointer-events: none; }
 .label { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
 .chips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.chips.wide { grid-template-columns: repeat(4, auto); justify-content: stretch; }
+.chips.wide { grid-template-columns: repeat(4, auto); }
 .chips button, .custom input {
   min-height: 46px; width: 100%;
   background: transparent; border: 1px solid var(--line); border-radius: var(--radius);
   font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer;
 }
 .chips.wide button { padding: 0 8px; font-size: 14px; }
-.custom { grid-column: span 1; }
 .custom input { text-align: center; padding: 0 4px; -moz-appearance: textfield; appearance: textfield; }
 .custom input::placeholder { color: var(--muted); font-size: 12px; }
 .custom input::-webkit-inner-spin-button, .custom input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -96,7 +88,6 @@ button, input { font: inherit; color: inherit; }
   content: ""; display: inline-block; vertical-align: -6px; margin-right: 10px;
   width: 38px; height: 22px; border-radius: 11px; border: 1px solid var(--line);
   background: radial-gradient(circle at 11px 50%, var(--muted) 7px, transparent 7.5px);
-  transition: background-position .2s;
 }
 .toggle input:checked + span::before {
   border-color: var(--lamp);
@@ -119,5 +110,5 @@ button, input { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .orb { transition-property: opacity; transition-duration: .8s; transform: scale(.8) !important; }
-  .controls, .toggle span::before { transition: none; }
+  .controls { transition: none; }
 }
