@@ -81,7 +81,7 @@ button, input { font: inherit; color: inherit; }
   outline: 2px solid var(--lamp); outline-offset: 2px;
 }
 
-.row { display: flex; gap: 22px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; } /* four switches in two tidy columns */
 .toggle { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: 15px; }
 .toggle input { position: absolute; opacity: 0; }
 .toggle span::before {
@@ -154,7 +154,6 @@ html, body { background: var(--bg); }
   .orb-wrap::before, .controls, .secondary { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgba(22, 40, 30, .86); }
 }
 /* three switches on one line at 390px */
-.row { gap: 8px; justify-content: space-between; }
 .toggle { white-space: nowrap; font-size: 14px; }
 .toggle span::before { margin-right: 8px; }
 /* shown once per session only when the screen can't be kept awake */

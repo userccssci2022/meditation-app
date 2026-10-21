@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const app = $('app'), orb = $('orb'), timeEl = $('time'), cueEl = $('cue');
   const startBtn = $('startBtn'), endBtn = $('endBtn'), customMin = $('customMin');
-  const chimeToggle = $('chimeToggle'), toneToggle = $('toneToggle'), intervalToggle = $('intervalToggle');
+  const chimeToggle = $('chimeToggle'), toneToggle = $('toneToggle'), intervalToggle = $('intervalToggle'), breathToggle = $('breathToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // Each phase: [cue, seconds, target scale]
@@ -18,13 +18,13 @@
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-  const settings = Object.assign({ minutes: 5, custom: false, pattern: 'calm', chime: true, tone: false, interval: false, intervalMin: 5 }, load(SKEY, {}));
+  const settings = Object.assign({ minutes: 5, custom: false, pattern: 'calm', chime: true, tone: false, interval: false, intervalMin: 5, breath: false }, load(SKEY, {}));
   let history = load(HKEY, []); // [{d:'YYYY-MM-DD', s:secondsSat, t:timestamp}]
 
   // ---------- state ----------
   let state = 'idle';       // idle | running | paused | done
   let totalMs = 0, remainingMs = 0, endAt = 0, startedAt = 0, elapsedBefore = 0;
-  let tickId = 0, phaseTimer = 0, phaseIdx = 0;
+  let tickId = 0, phaseTimer = 0, phaseIdx = 0, breathT0 = 0; // breathT0: performance.now() when phase 0 starts
   let wakeLock = null;
 
   // ---------- formatting ----------
@@ -69,6 +69,7 @@
     chimeToggle.checked = settings.chime;
     toneToggle.checked = settings.tone;
     intervalToggle.checked = settings.interval;
+    breathToggle.checked = settings.breath;
     if (state === 'idle' || state === 'done') timeEl.textContent = fmt(settings.minutes * 60000);
   }
   $('durations').addEventListener('click', (e) => {
@@ -90,23 +91,33 @@
   });
   chimeToggle.addEventListener('change', () => { settings.chime = chimeToggle.checked; save(SKEY, settings); audio(); scheduleBells(); });
   intervalToggle.addEventListener('change', () => { settings.interval = intervalToggle.checked; save(SKEY, settings); audio(); scheduleBells(); });
+  breathToggle.addEventListener('change', () => { settings.breath = breathToggle.checked; save(SKEY, settings); audio(); cancelCues(); scheduleCues(true); });
   toneToggle.addEventListener('change', () => {
     settings.tone = toneToggle.checked; save(SKEY, settings); audio();
     if (state === 'running') settings.tone ? toneOn() : toneOff();
   });
 
   // ---------- audio (Web Audio, one shared context, resumed on every tap for iOS) ----------
-  // iOS can leave the context 'suspended' or 'interrupted' (screen lock, background); only a tap brings it back.
-  // Interval and end bells live on the audio clock and are re-synced to the wall-clock timer whenever the clock (re)starts.
-  let ctx = null, master = null, tone = null, pending = [];
+  // iOS treats Web Audio as "ambient" sound by default: it obeys the silent switch and is suspended (its clock stops)
+  // when the screen locks or the app leaves the foreground, so a bell scheduled for the end never sounds.
+  // A 'playback' audio session (iOS 17+) lets it keep running like a media app; on iOS a near-silent looping
+  // <audio> element also holds the media session open during a session. If the clock still stopped, the end chime
+  // is owed and rung as soon as audio is back (within a minute of the end), and stale bells are cancelled.
+  // Interval, end and breath sounds live on the audio clock and are re-synced to the wall-clock timer whenever it (re)starts.
+  let ctx = null, master = null, tone = null, pending = [], owed = 0;
+  const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   function audio() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch {}
     if (!ctx) {
       ctx = new AC();
       master = ctx.createGain(); master.gain.value = 0.8;
       master.connect(ctx.destination);
-      ctx.onstatechange = () => { if (ctx.state === 'running' && state === 'running') scheduleBells(); };
+      ctx.onstatechange = () => {
+        if (ctx.state !== 'running') return;
+        if (state === 'running') { scheduleBells(); scheduleCues(); } else if (state === 'done') payOwed();
+      };
     }
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
     return ctx;
@@ -125,8 +136,8 @@
     });
   }
   function startChime() { if (settings.chime && audio()) bell(ctx.currentTime + 0.05); }
-  function cancelBells() {
-    pending.forEach((b) => { if (b.at > ctx.currentTime) b.nodes.forEach((o) => o.stop()); });
+  function cancelBells(keep) {
+    if (ctx) pending.forEach((b) => { if (b !== keep && b.at > ctx.currentTime) b.nodes.forEach((o) => o.stop()); });
     pending = [];
   }
   function scheduleBells() {
@@ -138,7 +149,76 @@
       const step = settings.intervalMin * 60;
       for (let k = step; k < total - 1; k += step) if (k > sat) pending.push({ at: now + k - sat, nodes: bell(now + k - sat, 1.5, .6) });
     }
-    if (settings.chime) pending.push({ at: now + left, nodes: [...bell(now + left), ...bell(now + left + 1.6)] });
+    if (settings.chime) pending.push({ at: now + left, end: true, nodes: [...bell(now + left), ...bell(now + left + 1.6)] });
+  }
+  // At the end: if the end chime is sounding (or just about to), keep it. Otherwise the audio clock was stopped,
+  // so cancel the stale one and owe the chime; it rings once audio is running again, if that's within a minute.
+  function finishBells() {
+    const endBell = pending.find((b) => b.end);
+    const heard = !!(ctx && endBell && ctx.state === 'running' && endBell.at <= ctx.currentTime + 0.5);
+    cancelBells(heard ? endBell : null);
+    owed = settings.chime && ctx && !heard ? Date.now() + 60000 : 0;
+    payOwed();
+  }
+  function payOwed() {
+    if (!owed || state !== 'done' || !ctx || ctx.state !== 'running') return;
+    if (Date.now() < owed) { const t = ctx.currentTime + 0.05; bell(t); bell(t + 1.6); }
+    owed = 0;
+  }
+  // Breath sound: a soft sine glide with a quiet octave. Inhale swells up a fourth (288 -> 384 Hz), exhale falls back.
+  // Peak ~0.1 against the bell's 0.37, so it stays well under the chime.
+  function breathCue(t0, inhale) {
+    const [f0, f1] = inhale ? [288, 384] : [384, 288], rise = inhale ? 0.8 : 0.15, len = inhale ? 2.4 : 2.8;
+    return [[1, .08], [2, .02]].map(([m, amp]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f0 * m;
+      o.frequency.setValueAtTime(f0 * m, t0); o.frequency.exponentialRampToValueAtTime(f1 * m, t0 + len * 0.7);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(amp, t0 + rise);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+      o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + len + 0.05);
+      return o;
+    });
+  }
+  // Cues are kept scheduled up to 5 min ahead on the audio clock (so they carry on if the page is asleep),
+  // topped up every tick, and rebuilt if the audio clock and the wall clock drift apart (e.g. after a suspend).
+  let cues = [], cueNext = 0, cueMap = null;
+  function cancelCues() {
+    if (ctx) cues.forEach((c) => { if (c.at > ctx.currentTime) c.nodes.forEach((o) => o.stop()); });
+    cues = []; cueMap = null;
+  }
+  function scheduleCues(fresh = false) {
+    const pat = PATTERNS[settings.pattern];
+    if (!settings.breath || state !== 'running' || !pat.length) { if (cues.length) cancelCues(); return; }
+    if (!ctx || ctx.state !== 'running') return;
+    const nowW = performance.now(), map = ctx.currentTime - nowW / 1000;
+    if (cueMap !== null && Math.abs(map - cueMap) > 0.05) cancelCues();
+    if (cueMap === null) { cueMap = map; cueNext = 0; while (phaseStart(cueNext) < nowW + (fresh ? -100 : 20)) cueNext++; }
+    cues = cues.filter((c) => c.at > ctx.currentTime - 5);
+    const stopW = Math.min(nowW + 300000, nowW + (endAt - Date.now()) - 1000); // none in the last second: that's the end chime's
+    for (let tw; (tw = phaseStart(cueNext)) < stopW; cueNext++) {
+      const cue = pat[cueNext % pat.length][0];
+      if (cue === 'Hold') continue;
+      const at = Math.max(cueMap + tw / 1000, ctx.currentTime + 0.01);
+      cues.push({ at, nodes: breathCue(at, cue === 'Inhale') });
+    }
+  }
+  // iOS only: a looping, near-silent clip (±1 LSB, about -90 dBFS) played from the Begin tap keeps the media session alive.
+  let keep = null, keepOff = 0;
+  function keepAlive(on) {
+    clearTimeout(keepOff);
+    if (!isIOS) return;
+    if (!on) { if (keep) keep.pause(); return; }
+    if (!keep) {
+      const n = 8000, v = new DataView(new ArrayBuffer(44 + n * 2)), w = (o, str) => [...str].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
+      w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+      v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+      w(36, 'data'); v.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, i % 2 ? 1 : -1, true);
+      keep = new Audio(URL.createObjectURL(new Blob([v], { type: 'audio/wav' })));
+      keep.loop = true; keep.setAttribute('playsinline', '');
+    }
+    keep.play().catch(() => {});
   }
   // Soft pad: two detuned low sines, lowpassed, very low level, slow swell, 3 s fades.
   function toneOn() {
@@ -176,7 +256,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       if (state === 'running') { lockScreen(); tick(); }
-      if (ctx && ctx.state !== 'running' && state === 'running') ctx.resume().catch(() => {});
+      if (ctx && ctx.state !== 'running' && (state === 'running' || owed)) ctx.resume().catch(() => {});
     }
   });
 
@@ -191,13 +271,23 @@
       orb.style.opacity = '1';
     }
   }
+  // Phase i starts at a fixed offset from breathT0, so the circle, the cue word and the breath sound share one timeline.
+  function phaseStart(i) {
+    const pat = PATTERNS[settings.pattern], cycle = pat.reduce((a, p) => a + p[1], 0);
+    let s = Math.floor(i / pat.length) * cycle;
+    for (let j = 0; j < i % pat.length; j++) s += pat[j][1];
+    return breathT0 + s * 1000;
+  }
   function runPhase() {
     const pat = PATTERNS[settings.pattern];
     if (!pat.length) { cueEl.textContent = 'Breathe naturally'; return; }
-    const [cue, secs, scale] = pat[phaseIdx % pat.length];
+    const now = performance.now();
+    while (phaseStart(phaseIdx + 1) <= now) phaseIdx++; // catch up if the page was asleep
+    const [cue, , scale] = pat[phaseIdx % pat.length], left = Math.max(0, phaseStart(phaseIdx + 1) - now);
     cueEl.textContent = cue;
-    setOrb(scale, secs);
-    phaseTimer = setTimeout(() => { phaseIdx++; runPhase(); }, secs * 1000);
+    setOrb(scale, left / 1000);
+    if (settings.breath && cue !== 'Hold' && navigator.vibrate) try { navigator.vibrate(15); } catch {} // a light tap where supported (not iOS)
+    phaseTimer = setTimeout(() => { phaseIdx++; runPhase(); }, left);
   }
   function stopBreathing(label) {
     clearTimeout(phaseTimer);
@@ -210,7 +300,7 @@
     if (state !== 'running') return;
     remainingMs = endAt - Date.now();
     timeEl.textContent = fmt(remainingMs);
-    if (remainingMs <= 0) finish();
+    if (remainingMs <= 0) finish(); else scheduleCues();
   }
   function setState(s) {
     state = s; app.dataset.state = s;
@@ -220,15 +310,17 @@
     if (s !== 'running') hint(false);
   }
   function start() {
-    totalMs = settings.minutes * 60000; remainingMs = totalMs; elapsedBefore = 0; hintShown = false;
+    totalMs = settings.minutes * 60000; remainingMs = totalMs; elapsedBefore = 0; hintShown = false; owed = 0;
     resume(true);
   }
   function resume(fresh = false) {
-    audio();
+    audio(); keepAlive(true);
     endAt = Date.now() + remainingMs; startedAt = Date.now(); phaseIdx = 0;
+    breathT0 = performance.now() + (fresh ? 1500 : 0); // a fresh session lets the opening chime land first; a resume starts a new cycle
     setState('running');
     if (fresh) startChime();
     scheduleBells();
+    cancelCues(); scheduleCues(true);
     if (settings.tone) toneOn();
     lockScreen();
     clearInterval(tickId); tickId = setInterval(tick, 250); tick();
@@ -240,13 +332,14 @@
   function pause() {
     remainingMs = Math.max(0, endAt - Date.now());
     elapsedBefore += Date.now() - startedAt;
-    clearInterval(tickId); setState('paused'); stopBreathing('Paused'); toneOff(); unlockScreen(); audio(); cancelBells();
+    clearInterval(tickId); setState('paused'); stopBreathing('Paused'); toneOff(); unlockScreen(); audio(); cancelBells(); cancelCues(); keepAlive(false);
   }
   function sat() { return (elapsedBefore + (state === 'running' ? Date.now() - startedAt : 0)) / 1000; }
   function finish() {
     const secs = Math.min(sat(), totalMs / 1000);
     clearInterval(tickId); clearTimeout(phaseTimer);
-    setState('done'); toneOff(); unlockScreen();
+    setState('done'); toneOff(); unlockScreen(); cancelCues(); finishBells();
+    keepOff = setTimeout(() => keepAlive(false), 6000); // after the end chime has rung out
     const streak = logSession(secs);
     timeEl.textContent = secs < 60 ? '<1 min' : `${Math.round(secs / 60)} min`;
     cueEl.textContent = streak ? `Complete · ${streak}-day streak` : 'Complete';
@@ -255,7 +348,7 @@
   function end() {
     const secs = sat();
     state = 'idle';
-    clearInterval(tickId); toneOff(); unlockScreen(); cancelBells();
+    clearInterval(tickId); toneOff(); unlockScreen(); cancelBells(); cancelCues(); keepAlive(false);
     logSession(secs);
     resetToIdle();
   }
