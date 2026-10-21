@@ -165,8 +165,12 @@
   }
 
   // ---------- wake lock ----------
+  let hintShown = false, hintTimer = 0;
+  function hint(show) { clearTimeout(hintTimer); $('hint').hidden = !show; if (show) hintTimer = setTimeout(() => { $('hint').hidden = true; }, 8000); }
   async function lockScreen() {
-    try { if ('wakeLock' in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch {}
+    if (wakeLock) return;
+    try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
+    catch { if (!hintShown && state === 'running') { hintShown = true; hint(true); } } // no Wake Lock (older iOS) or refused: say so once per session
   }
   function unlockScreen() { try { wakeLock && wakeLock.release(); } catch {} wakeLock = null; }
   document.addEventListener('visibilitychange', () => {
@@ -213,9 +217,10 @@
     startBtn.textContent = { idle: 'Begin', running: 'Pause', paused: 'Resume', done: 'Again' }[s];
     const inSession = s === 'running' || s === 'paused';
     endBtn.hidden = !inSession; $('settings').inert = inSession;
+    if (s !== 'running') hint(false);
   }
   function start() {
-    totalMs = settings.minutes * 60000; remainingMs = totalMs; elapsedBefore = 0;
+    totalMs = settings.minutes * 60000; remainingMs = totalMs; elapsedBefore = 0; hintShown = false;
     resume(true);
   }
   function resume(fresh = false) {

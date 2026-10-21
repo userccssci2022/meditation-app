@@ -74,7 +74,7 @@ button, input { font: inherit; color: inherit; }
   font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer;
 }
 .chips.wide button { padding: 0 8px; font-size: 14px; }
-.custom input { text-align: center; padding: 0 4px; }
+.custom input { text-align: center; padding: 0 2px; }
 .custom input::placeholder { color: var(--muted); font-size: 12px; }
 .chips [aria-checked="true"], .custom input.active { border-color: var(--lamp); color: var(--lamp); background: var(--lamp-dim); }
 .chips button:focus-visible, .custom input:focus-visible, .actions button:focus-visible, .toggle input:focus-visible + span {
@@ -157,3 +157,8 @@ html, body { background: var(--bg); }
 .row { gap: 8px; justify-content: space-between; }
 .toggle { white-space: nowrap; font-size: 14px; }
 .toggle span::before { margin-right: 8px; }
+/* shown once per session only when the screen can't be kept awake */
+.actions { position: relative; }
+.hint { position: absolute; left: 0; right: 0; bottom: calc(100% + 12px); margin: 0; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.4; text-align: center;
+  color: var(--text); background: rgba(20, 40, 28, .5); -webkit-backdrop-filter: blur(12px) brightness(.5); backdrop-filter: blur(12px) brightness(.5); }
+@media (prefers-reduced-transparency: reduce) { .hint { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(22, 40, 30, .9); } }
