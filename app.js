@@ -165,18 +165,20 @@
     if (Date.now() < owed) { const t = ctx.currentTime + 0.05; bell(t); bell(t + 1.6); }
     owed = 0;
   }
-  // Breath sound: a soft sine glide with a quiet octave. Inhale swells up a fourth (288 -> 384 Hz), exhale falls back.
-  // Peak ~0.1 against the bell's 0.37, so it stays well under the chime.
+  // Breath sound: a soft singing bowl per breath. Inhale a brighter bowl (540 Hz); exhale a lower bowl (324 Hz) with a
+  // long decay. Bowl-like inharmonic partials (1, 2.76, 5.4) with slow beating; linear 12 ms onset from 0 (no click).
+  // Level 0.804 puts the cue peak at about -23 dBFS at the output, against the chime's -11.
   function breathCue(t0, inhale) {
-    const [f0, f1] = inhale ? [288, 384] : [384, 288], rise = inhale ? 0.8 : 0.15, len = inhale ? 2.4 : 2.8;
-    return [[1, .08], [2, .02]].map(([m, amp]) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = f0 * m;
-      o.frequency.setValueAtTime(f0 * m, t0); o.frequency.exponentialRampToValueAtTime(f1 * m, t0 + len * 0.7);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(amp, t0 + rise);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
-      o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + len + 0.05);
+    const f = inhale ? 540 : 324, decay = inhale ? 3.2 : 5.5, level = 0.804;
+    return [[1, .06, 1], [1.004, .03, 1], [2.76, .018, .55], [5.4, .004, .3]].map(([m, amp, dk]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(), peak = amp * level, rel = decay * dk;
+      o.type = 'sine'; o.frequency.value = f * m;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(peak, t0 + 0.012);
+      g.gain.setValueAtTime(peak, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(peak * 0.001, t0 + 0.012 + rel);
+      g.gain.linearRampToValueAtTime(0, t0 + 0.012 + rel + 0.05);
+      o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.012 + rel + 0.1);
       return o;
     });
   }
