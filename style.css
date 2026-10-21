@@ -153,3 +153,7 @@ html, body { background: var(--bg); }
 @media (prefers-reduced-transparency: reduce) {
   .orb-wrap::before, .controls, .secondary { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgba(22, 40, 30, .86); }
 }
+/* three switches on one line at 390px */
+.row { gap: 8px; justify-content: space-between; }
+.toggle { white-space: nowrap; font-size: 14px; }
+.toggle span::before { margin-right: 8px; }

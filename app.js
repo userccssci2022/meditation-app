@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const app = $('app'), orb = $('orb'), timeEl = $('time'), cueEl = $('cue');
   const startBtn = $('startBtn'), endBtn = $('endBtn'), customMin = $('customMin');
-  const chimeToggle = $('chimeToggle'), toneToggle = $('toneToggle');
+  const chimeToggle = $('chimeToggle'), toneToggle = $('toneToggle'), intervalToggle = $('intervalToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   // Each phase: [cue, seconds, target scale]
@@ -18,7 +18,7 @@
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-  const settings = Object.assign({ minutes: 5, custom: false, pattern: 'calm', chime: true, tone: false }, load(SKEY, {}));
+  const settings = Object.assign({ minutes: 5, custom: false, pattern: 'calm', chime: true, tone: false, interval: false, intervalMin: 5 }, load(SKEY, {}));
   let history = load(HKEY, []); // [{d:'YYYY-MM-DD', s:secondsSat, t:timestamp}]
 
   // ---------- state ----------
@@ -68,6 +68,7 @@
       b.setAttribute('aria-checked', String(b.dataset.pattern === settings.pattern)));
     chimeToggle.checked = settings.chime;
     toneToggle.checked = settings.tone;
+    intervalToggle.checked = settings.interval;
     if (state === 'idle' || state === 'done') timeEl.textContent = fmt(settings.minutes * 60000);
   }
   $('durations').addEventListener('click', (e) => {
@@ -87,7 +88,8 @@
     const b = e.target.closest('button[data-pattern]'); if (!b) return;
     settings.pattern = b.dataset.pattern; save(SKEY, settings); renderSettings();
   });
-  chimeToggle.addEventListener('change', () => { settings.chime = chimeToggle.checked; save(SKEY, settings); audio(); scheduleEnd(); });
+  chimeToggle.addEventListener('change', () => { settings.chime = chimeToggle.checked; save(SKEY, settings); audio(); scheduleBells(); });
+  intervalToggle.addEventListener('change', () => { settings.interval = intervalToggle.checked; save(SKEY, settings); audio(); scheduleBells(); });
   toneToggle.addEventListener('change', () => {
     settings.tone = toneToggle.checked; save(SKEY, settings); audio();
     if (state === 'running') settings.tone ? toneOn() : toneOff();
@@ -95,8 +97,8 @@
 
   // ---------- audio (Web Audio, one shared context, resumed on every tap for iOS) ----------
   // iOS can leave the context 'suspended' or 'interrupted' (screen lock, background); only a tap brings it back.
-  // The end chime lives on the audio clock and is re-synced to the wall-clock timer whenever the clock (re)starts.
-  let ctx = null, master = null, tone = null, endChime = null;
+  // Interval and end bells live on the audio clock and are re-synced to the wall-clock timer whenever the clock (re)starts.
+  let ctx = null, master = null, tone = null, pending = [];
   function audio() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
@@ -104,34 +106,39 @@
       ctx = new AC();
       master = ctx.createGain(); master.gain.value = 0.8;
       master.connect(ctx.destination);
-      ctx.onstatechange = () => { if (ctx.state === 'running' && state === 'running') scheduleEnd(); };
+      ctx.onstatechange = () => { if (ctx.state === 'running' && state === 'running') scheduleBells(); };
     }
     if (ctx.state !== 'running') ctx.resume().catch(() => {});
     return ctx;
   }
   // Soft bell: sine partials, quick attack, 2–4 s exponential decay. Partials sum to 0.37, so overlaps can't clip.
-  function bell(t0) {
+  // pitch/level: the interval bell is a fifth higher (648 Hz) and softer, so it can't be mistaken for the end.
+  function bell(t0, pitch = 1, level = 1) {
     return [[432, .2, 4], [433.3, .1, 4], [1192, .05, 2.2], [2333, .015, 1.2]].map(([f, amp, dur]) => {
       const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'sine'; o.frequency.value = f;
+      o.type = 'sine'; o.frequency.value = f * pitch;
       g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(amp, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(amp * level, t0 + 0.015);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + 0.05);
       return o;
     });
   }
   function startChime() { if (settings.chime && audio()) bell(ctx.currentTime + 0.05); }
-  function cancelEnd() {
-    if (endChime && endChime.at > ctx.currentTime) endChime.nodes.forEach((o) => o.stop());
-    endChime = null;
+  function cancelBells() {
+    pending.forEach((b) => { if (b.at > ctx.currentTime) b.nodes.forEach((o) => o.stop()); });
+    pending = [];
   }
-  function scheduleEnd() {
+  function scheduleBells() {
     if (!ctx) return;
-    cancelEnd();
-    if (!settings.chime || state !== 'running') return;
-    const at = ctx.currentTime + Math.max(0, (endAt - Date.now()) / 1000);
-    endChime = { at, nodes: [...bell(at), ...bell(at + 1.6)] };
+    cancelBells();
+    if (state !== 'running') return;
+    const now = ctx.currentTime, left = Math.max(0, (endAt - Date.now()) / 1000), total = totalMs / 1000, sat = total - left;
+    if (settings.interval) {
+      const step = settings.intervalMin * 60;
+      for (let k = step; k < total - 1; k += step) if (k > sat) pending.push({ at: now + k - sat, nodes: bell(now + k - sat, 1.5, .6) });
+    }
+    if (settings.chime) pending.push({ at: now + left, nodes: [...bell(now + left), ...bell(now + left + 1.6)] });
   }
   // Soft pad: two detuned low sines, lowpassed, very low level, slow swell, 3 s fades.
   function toneOn() {
@@ -216,7 +223,7 @@
     endAt = Date.now() + remainingMs; startedAt = Date.now(); phaseIdx = 0;
     setState('running');
     if (fresh) startChime();
-    scheduleEnd();
+    scheduleBells();
     if (settings.tone) toneOn();
     lockScreen();
     clearInterval(tickId); tickId = setInterval(tick, 250); tick();
@@ -228,7 +235,7 @@
   function pause() {
     remainingMs = Math.max(0, endAt - Date.now());
     elapsedBefore += Date.now() - startedAt;
-    clearInterval(tickId); setState('paused'); stopBreathing('Paused'); toneOff(); unlockScreen(); audio(); cancelEnd();
+    clearInterval(tickId); setState('paused'); stopBreathing('Paused'); toneOff(); unlockScreen(); audio(); cancelBells();
   }
   function sat() { return (elapsedBefore + (state === 'running' ? Date.now() - startedAt : 0)) / 1000; }
   function finish() {
@@ -243,7 +250,7 @@
   function end() {
     const secs = sat();
     state = 'idle';
-    clearInterval(tickId); toneOff(); unlockScreen(); cancelEnd();
+    clearInterval(tickId); toneOff(); unlockScreen(); cancelBells();
     logSession(secs);
     resetToIdle();
   }

@@ -14,7 +14,7 @@ Ranked by user delight ÷ size. ✅ = shipped in this pass.
 | 5 | ✅ Chip and ring borders are 1.4:1 against the background | a11y | XS | WCAG non-text contrast wants 3:1. Raise the line colour. |
 | 6 | ✅ Dead code: light-mode `.auto` block never applies; toggle transitions a property that never changes; `color-scheme: dark light` on a dark-only app; redundant `.custom` rule | remove | XS | Less to read, nothing visible changes. |
 | 7 | End chime when the screen auto-locks (silent keep-alive buffer / media element) | iOS | M | High value, but iOS lock-screen audio behaviour can't be proven headless. Needs an on-device test. Wake Lock already keeps the screen on (iOS 18.4+ Home Screen apps). |
-| 8 | Optional interval bell (every 5 min) | feature | S | Nice for longer sits, but adds a control. Wait until Steve asks. |
+| 8 | ✅ (iter 2) Optional interval bell every 5 min | feature | S | Off by default. One softer strike a fifth above the chime (648 Hz, 60% level). Scheduled on the audio clock with the end chime in one `pending` list, cancelled on pause, re-synced on resume and when audio restarts. Harness proves bells at 5/13/18 s across a 3 s pause, and none when off. The switch row was tightened so three switches fit on one line. |
 | 9 | Last-7-days strip under the stats | feature | S | Tiny, but the streak number already covers most of the motivation. |
 | 10 | Hint when Wake Lock is unsupported ("set Auto-Lock to Never during sessions") | iOS | XS | Only matters on older iOS. |
 | 11 | Radio-group arrow-key navigation for the chips | a11y | XS | Keyboard-only; iPhone VoiceOver swipe works already. |
