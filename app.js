@@ -47,6 +47,7 @@
     $('statStreak').textContent = streak;
     $('statCount').textContent = history.length;
     $('statMinutes').textContent = Math.round(history.reduce((a, h) => a + h.s, 0) / 60);
+    document.querySelector('.stats').style.visibility = history.length ? '' : 'hidden'; // first run: no row of zeros
     return streak;
   }
   function logSession(seconds) {
@@ -62,7 +63,7 @@
     document.querySelectorAll('#durations button').forEach((b) =>
       b.setAttribute('aria-checked', String(!settings.custom && +b.dataset.min === settings.minutes)));
     customMin.classList.toggle('active', settings.custom);
-    if (settings.custom) customMin.value = settings.minutes;
+    customMin.value = settings.custom ? settings.minutes : '';
     document.querySelectorAll('#patterns button').forEach((b) =>
       b.setAttribute('aria-checked', String(b.dataset.pattern === settings.pattern)));
     chimeToggle.checked = settings.chime;
@@ -75,9 +76,12 @@
     save(SKEY, settings); resetToIdle(); renderSettings();
   });
   customMin.addEventListener('input', () => {
-    const v = Math.round(+customMin.value);
-    if (v >= 1 && v <= 180) { settings.minutes = v; settings.custom = true; save(SKEY, settings); resetToIdle(); renderSettings(); }
+    const digits = customMin.value.replace(/\D/g, '');
+    const v = Math.min(+digits, 180);
+    customMin.value = v ? String(v) : digits;
+    if (v >= 1) { settings.minutes = v; settings.custom = true; save(SKEY, settings); resetToIdle(); renderSettings(); }
   });
+  customMin.addEventListener('blur', renderSettings); // the box always ends up showing what's actually set
   customMin.addEventListener('keydown', (e) => { if (e.key === 'Enter') customMin.blur(); });
   $('patterns').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-pattern]'); if (!b) return;

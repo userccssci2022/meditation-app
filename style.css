@@ -74,9 +74,8 @@ button, input { font: inherit; color: inherit; }
   font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer;
 }
 .chips.wide button { padding: 0 8px; font-size: 14px; }
-.custom input { text-align: center; padding: 0 4px; -moz-appearance: textfield; appearance: textfield; }
+.custom input { text-align: center; padding: 0 4px; }
 .custom input::placeholder { color: var(--muted); font-size: 12px; }
-.custom input::-webkit-inner-spin-button, .custom input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .chips [aria-checked="true"], .custom input.active { border-color: var(--lamp); color: var(--lamp); background: var(--lamp-dim); }
 .chips button:focus-visible, .custom input:focus-visible, .actions button:focus-visible, .toggle input:focus-visible + span {
   outline: 2px solid var(--lamp); outline-offset: 2px;

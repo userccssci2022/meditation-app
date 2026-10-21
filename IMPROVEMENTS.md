@@ -18,6 +18,7 @@ Ranked by user delight ÷ size. ✅ = shipped in this pass.
 | 9 | Last-7-days strip under the stats | feature | S | Tiny, but the streak number already covers most of the motivation. |
 | 10 | Hint when Wake Lock is unsupported ("set Auto-Lock to Never during sessions") | iOS | XS | Only matters on older iOS. |
 | 11 | Radio-group arrow-key navigation for the chips | a11y | XS | Keyboard-only; iPhone VoiceOver swipe works already. |
-| 12 | Custom minutes field shows raw decimals if a fractional value is ever stored | polish | XS | Only reachable via test seeding today. |
+| 12 | ✅ (iter 1) Custom length box could disagree with the timer: `999` showed while 99 min was set; `0`/`-3` were silently ignored | bug | XS | Digits only (`inputmode=numeric`), clamp to 180, and on blur the box always shows what's actually set. Dead spinner CSS removed. |
+| 13 | ✅ (iter 1) First run opened on "0 day streak · 0 sessions · 0 min" | delight | XS | Stats row stays hidden until there is history (space kept, so no layout shift). |
 
 Left out on purpose: haptics (iOS Safari has no `vibrate`), accounts or sync, more breathing patterns.
