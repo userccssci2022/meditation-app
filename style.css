@@ -63,17 +63,17 @@ button, input { font: inherit; color: inherit; }
 [data-state="running"] .cue, [data-state="done"] .cue { color: var(--lamp); }
 [data-state="done"] .orb { background: rgba(224, 169, 109, .3); }
 
-.controls { display: grid; gap: 18px; padding: 8px 0 18px; transition: opacity .4s; }
+.controls { display: grid; gap: 14px; padding: 8px 0 14px; transition: opacity .4s; }
 [data-state="running"] .controls, [data-state="paused"] .controls { opacity: 0; }
 .label { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
 .chips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.chips.wide { grid-template-columns: repeat(4, auto); }
+.chips.wide { grid-template-columns: repeat(3, 1fr); } /* six patterns: three tidy columns */
 .chips button, .custom input {
   min-height: 46px; width: 100%;
   background: transparent; border: 1px solid var(--line); border-radius: var(--radius);
   font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer;
 }
-.chips.wide button { padding: 0 8px; font-size: 14px; }
+.chips.wide button { padding: 0 4px; font-size: 13px; white-space: nowrap; }
 .custom input { text-align: center; padding: 0 2px; }
 .custom input::placeholder { color: var(--muted); font-size: 12px; }
 .chips [aria-checked="true"], .custom input.active { border-color: var(--lamp); color: var(--lamp); background: var(--lamp-dim); }
@@ -129,12 +129,12 @@ html, body { background: var(--bg); }
 .stats { color: var(--muted); }
 .orb-wrap::before { content: ""; position: absolute; inset: -6px; border-radius: 50%;
   background: radial-gradient(circle, rgba(16, 44, 72, .34) 0 55%, rgba(16, 44, 72, .2) 100%);
-  -webkit-backdrop-filter: blur(12px) brightness(.5) saturate(1.2); backdrop-filter: blur(12px) brightness(.5) saturate(1.2); }
+  -webkit-backdrop-filter: blur(12px) brightness(.42) saturate(1.2); backdrop-filter: blur(12px) brightness(.42) saturate(1.2); }
 .orb-ring { border-color: rgba(251, 241, 214, .55); }
 .orb { background: rgba(251, 233, 194, .1); border: 1.5px solid rgba(251, 236, 200, .9); }
 [data-state="done"] .orb { background: rgba(251, 222, 160, .16); }
 .time { font-weight: 300; }
-.cue, [data-state="running"] .cue, [data-state="done"] .cue { color: #fde7b8; }
+.time, .cue, [data-state="running"] .cue, [data-state="done"] .cue { color: #fde7b8; text-shadow: 0 1px 8px rgba(8, 20, 30, .55); }
 
 /* one frosted panel for the settings; the painting above it stays clear */
 .controls { margin: 0 -8px 12px; padding: 14px 12px 6px; border-radius: 22px; border: 1px solid rgba(251, 241, 214, .2);

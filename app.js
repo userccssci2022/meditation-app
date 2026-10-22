@@ -8,8 +8,10 @@
 
   // Each phase: [cue, seconds, target scale]
   const PATTERNS = {
+    relax: [['Inhale', 4, 1], ['Exhale', 6, .55]], // longer exhale; default for new users
     calm: [['Inhale', 5, 1], ['Exhale', 5, .55]],
     box: [['Inhale', 4, 1], ['Hold', 4, 1], ['Exhale', 4, .55], ['Hold', 4, .55]],
+    sigh: [['Inhale', 1.5, .82], ['Sip', 1.5, 1], ['Exhale', 6, .55]], // cyclic sigh: two short inhales + long exhale
     '478': [['Inhale', 4, 1], ['Hold', 7, 1], ['Exhale', 8, .55]],
     none: []
   };
@@ -18,7 +20,7 @@
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
-  const settings = Object.assign({ minutes: 5, custom: false, pattern: 'calm', chime: true, tone: false, interval: false, intervalMin: 5, breath: false }, load(SKEY, {}));
+  const settings = Object.assign({ minutes: 5, custom: false, pattern: 'relax', chime: true, tone: false, interval: false, intervalMin: 5, breath: false }, load(SKEY, {}));
   let history = load(HKEY, []); // [{d:'YYYY-MM-DD', s:secondsSat, t:timestamp}]
 
   // ---------- state ----------
@@ -202,7 +204,7 @@
       const cue = pat[cueNext % pat.length][0];
       if (cue === 'Hold') continue;
       const at = Math.max(cueMap + tw / 1000, ctx.currentTime + 0.01);
-      cues.push({ at, nodes: breathCue(at, cue === 'Inhale') });
+      cues.push({ at, nodes: breathCue(at, cue !== 'Exhale') }); // Inhale and Sip share the brighter bowl
     }
   }
   // iOS only: a looping, near-silent clip (±1 LSB, about -90 dBFS) played from the Begin tap keeps the media session alive.
