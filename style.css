@@ -67,7 +67,9 @@ button, input { font: inherit; color: inherit; }
 [data-state="running"] .controls, [data-state="paused"] .controls { opacity: 0; }
 .label { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
 .chips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.chips.wide { grid-template-columns: repeat(3, 1fr); } /* six patterns: three tidy columns */
+.chips.wide { grid-template-columns: repeat(12, 1fr); } /* seven patterns: four short chips, then three wider ones */
+.chips.wide button { grid-column: span 3; }
+.chips.wide button:nth-child(n+5) { grid-column: span 4; }
 .chips button, .custom input {
   min-height: 46px; width: 100%;
   background: transparent; border: 1px solid var(--line); border-radius: var(--radius);
