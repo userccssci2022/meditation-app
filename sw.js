@@ -1,6 +1,6 @@
-const CACHE = 'still-v12-meadow';
+const CACHE = 'still-v13-zen';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json',
-  'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'favicon.png', 'meadow.webp'];
+  'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'favicon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
