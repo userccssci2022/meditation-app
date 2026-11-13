@@ -1,6 +1,7 @@
-const CACHE = 'still-v14-zen';
+const CACHE = 'still-v15-zen';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json',
-  'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'favicon.png'];
+  'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'favicon.png',
+  'fonts/cormorant-garamond.woff2', 'fonts/yuji-syuku.woff2'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

@@ -1,5 +1,9 @@
 /* Direction: zen. Washi paper, sumi ink, one vermilion mark, and a lot of empty space (ma).
    The ensō is the breathing guide; everything else stays out of its way. Follows the system light/dark setting. */
+/* Cormorant Garamond for the words (self-hosted, latin subset); Yuji Syuku, a brush kanji face, for the breath marks
+   (subset to just the characters the app shows: 吸 吐 止 静 息 休). Both stay offline via the service worker. */
+@font-face { font-family: "Cormorant Garamond"; src: url(fonts/cormorant-garamond.woff2) format("woff2"); font-weight: 300 700; font-display: swap; }
+@font-face { font-family: "Yuji Syuku"; src: url(fonts/yuji-syuku.woff2) format("woff2"); font-display: block; }
 :root {
   --paper: #f3eee3;
   --raised: #f8f4ea;
@@ -10,7 +14,7 @@
   --wash: rgba(38, 36, 31, .08);
   --shu: #c0432c; /* vermilion, used only for "this one" and the seal */
   --grain: .9;
-  --serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Songti SC", "Iowan Old Style", Georgia, serif;
+  --serif: "Cormorant Garamond", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Songti SC", "Iowan Old Style", Georgia, serif;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -24,7 +28,8 @@
 html, body { margin: 0; height: 100%; background: var(--paper); }
 body {
   color: var(--ink);
-  font: 16px/1.4 var(--serif);
+  font: 17px/1.4 var(--serif);
+  font-variant-numeric: lining-nums;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
@@ -53,22 +58,30 @@ button { background: none; border: 0; padding: 0; cursor: pointer; touch-action:
 }
 
 .label {
-  margin: 0; font: 500 11px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  color: var(--muted); text-transform: uppercase; letter-spacing: .2em;
+  margin: 0; font: 500 13px/1 var(--serif);
+  color: var(--muted); text-transform: uppercase; letter-spacing: .26em;
 }
 
 /* ---------- practice so far ---------- */
 .stats {
   display: flex; justify-content: center; gap: 10px;
-  font-size: 13px; color: var(--muted); letter-spacing: .04em; transition: opacity .6s;
+  font-size: 15px; font-style: italic; color: var(--muted); letter-spacing: .03em; transition: opacity .6s;
 }
 .stats span + span::before { content: "·"; margin-right: 10px; }
-.stats b { color: var(--ink); font-weight: 400; font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); font-weight: 500; font-style: normal; font-variant-numeric: tabular-nums; }
 
 /* ---------- ensō ---------- */
 .stage { display: grid; place-items: center; min-height: 250px; padding: 8px 0; }
 .orb-wrap { position: relative; width: min(80vw, 330px, 44vh); aspect-ratio: 1; display: grid; place-items: center; }
-.orb-ring { position: absolute; inset: 0; width: 100%; height: 100%; fill: var(--ink); }
+.orb-ring {
+  position: absolute; inset: 0; width: 100%; height: 100%; fill: var(--ink);
+  /* the ensō turns a little with every breath and holds still on a hold; angle and scale are set from app.js */
+  transform: rotate(0deg) scale(1);
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(.45, 0, .55, 1);
+  transition-duration: 1.2s;
+  will-change: transform;
+}
 /* the breath: a pool of thin ink that fills the ring and ebbs */
 .orb {
   position: absolute; inset: 9%; border-radius: 50%;
@@ -80,15 +93,18 @@ button { background: none; border: 0; padding: 0; cursor: pointer; touch-action:
   will-change: transform;
 }
 .readout { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.time { font-size: 60px; font-weight: 300; line-height: 1.1; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
-.cue { margin-top: 6px; min-height: 1.4em; font-size: 13px; color: var(--muted); letter-spacing: .24em; text-indent: .24em; text-transform: uppercase; }
-/* while sitting, the breath word leads and the clock steps back */
+.time { font-size: 72px; font-weight: 300; line-height: 1.05; letter-spacing: .01em; font-variant-numeric: lining-nums tabular-nums; }
+.cue { margin-top: 4px; min-height: 1.4em; font-size: 14px; color: var(--muted); letter-spacing: .3em; text-indent: .3em; text-transform: uppercase; }
+.kanji { display: none; font: 64px/1 "Yuji Syuku", "Hiragino Mincho ProN", "Yu Mincho", serif; transition: opacity .5s; }
+/* while sitting: the brush kanji leads, the word sits under it, the clock steps back */
+[data-state="running"] .kanji, [data-state="paused"] .kanji { display: block; order: -2; margin-bottom: 10px; }
+[data-state="paused"] .kanji { opacity: .5; }
 [data-state="running"] .cue, [data-state="paused"] .cue {
-  order: -1; margin: 0 0 8px; font-size: 30px; color: var(--ink); letter-spacing: .14em; text-indent: .14em; text-transform: none;
+  order: -1; margin: 0 0 10px; font-size: 24px; font-style: italic; color: var(--ink); letter-spacing: .06em; text-indent: 0; text-transform: lowercase;
 }
-[data-state="running"] .time, [data-state="paused"] .time { font-size: 17px; color: var(--muted); letter-spacing: .08em; }
+[data-state="running"] .time, [data-state="paused"] .time { font-size: 18px; color: var(--muted); letter-spacing: .1em; }
 [data-state="paused"] .orb-ring { opacity: .45; transition: opacity .6s; }
-[data-state="done"] .cue { letter-spacing: .14em; text-indent: .14em; }
+[data-state="done"] .cue { letter-spacing: .16em; text-indent: .16em; }
 .seal {
   position: absolute; right: 9%; bottom: 7%; width: 30px; height: 30px; border-radius: 4px;
   background: var(--shu); opacity: 0; transform: rotate(-5deg) scale(1.5);
@@ -104,7 +120,7 @@ button { background: none; border: 0; padding: 0; cursor: pointer; touch-action:
 .lengths { display: grid; grid-template-columns: repeat(6, 1fr); margin: 4px -8px 0; }
 .lengths button, .custom input {
   position: relative; width: 100%; height: 52px; text-align: center;
-  font-size: 22px; color: var(--muted); font-variant-numeric: tabular-nums;
+  font-size: 26px; color: var(--muted); font-variant-numeric: lining-nums tabular-nums;
 }
 .lengths [aria-checked="true"], .custom input.active { color: var(--ink); }
 .lengths [aria-checked="true"]::after, .custom:has(input.active)::after {
@@ -112,20 +128,20 @@ button { background: none; border: 0; padding: 0; cursor: pointer; touch-action:
 }
 .custom { position: relative; }
 .custom input { background: none; border: 0; border-radius: 0; padding: 0; outline-offset: -4px; }
-.custom input::placeholder { color: var(--muted); font-size: 14px; letter-spacing: .04em; opacity: 1; }
+.custom input::placeholder { color: var(--muted); font-size: 17px; font-style: italic; opacity: 1; }
 .custom input:focus::placeholder { color: transparent; }
 
 .row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   width: 100%; min-height: 50px; border-top: 1px solid var(--line); text-align: left;
 }
-.row .value { flex: 1; min-width: 0; text-align: right; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .value { flex: 1; min-width: 0; text-align: right; font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row::after { content: ""; flex: none; width: 7px; height: 7px; margin-left: -6px; border: solid var(--muted); border-width: 1px 1px 0 0; transform: rotate(45deg); }
 .row:active { opacity: .55; }
 
 /* ---------- begin ---------- */
 .actions { position: relative; display: flex; gap: 12px; padding-top: 10px; }
-.actions button { min-height: 58px; border-radius: 3px; font-size: 18px; letter-spacing: .22em; text-indent: .22em; transition: background-color .4s, color .4s, opacity .2s; }
+.actions button { min-height: 58px; border-radius: 3px; font-size: 21px; font-weight: 500; letter-spacing: .26em; text-indent: .26em; transition: background-color .4s, color .4s, opacity .2s; }
 .primary { flex: 1; background: var(--ink); color: var(--paper); border: 1px solid var(--ink); }
 [data-state="running"] .primary, [data-state="paused"] .primary { background: transparent; color: var(--ink); border-color: var(--edge); }
 .secondary { flex: 0 0 104px; color: var(--muted); }
@@ -133,7 +149,7 @@ button { background: none; border: 0; padding: 0; cursor: pointer; touch-action:
 /* shown once per session only when the screen can't be kept awake */
 .hint {
   position: absolute; left: 0; right: 0; bottom: calc(100% + 10px); margin: 0; padding: 12px 14px;
-  font: 13px/1.45 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; text-align: center;
+  font: italic 16px/1.35 var(--serif); text-align: center;
   color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 3px;
 }
 
@@ -151,14 +167,14 @@ button { background: none; border: 0; padding: 0; cursor: pointer; touch-action:
 @keyframes fade { from { opacity: 0; } }
 .sheet-body { padding: 6px calc(env(safe-area-inset-right) + 28px) calc(env(safe-area-inset-bottom) + 18px) calc(env(safe-area-inset-left) + 28px); }
 .sheet header { display: flex; align-items: center; justify-content: space-between; min-height: 56px; }
-.sheet h2 { margin: 0; font-size: 19px; font-weight: 400; letter-spacing: .1em; }
-.done { min-height: 44px; padding: 0 2px 0 16px; font-size: 16px; color: var(--muted); letter-spacing: .06em; }
+.sheet h2 { margin: 0; font-size: 23px; font-weight: 400; letter-spacing: .1em; }
+.done { min-height: 44px; padding: 0 2px 0 16px; font-size: 18px; font-style: italic; color: var(--muted); letter-spacing: .06em; }
 .options > * {
   position: relative; display: flex; align-items: center; gap: 16px;
   width: 100%; min-height: 60px; padding: 9px 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer;
 }
-.options b { display: block; font-weight: 400; font-size: 17px; }
-.options small { display: block; margin-top: 1px; font: 13px/1.35 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; color: var(--muted); }
+.options b { display: block; font-weight: 500; font-size: 20px; }
+.options small { display: block; margin-top: 1px; font-size: 16px; line-height: 1.3; font-style: italic; color: var(--muted); }
 .options button { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; padding-right: 28px; }
 .options button:active { opacity: .55; }
 .options [aria-checked="true"]::after { content: ""; position: absolute; right: 6px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--shu); }
@@ -172,13 +188,15 @@ button { background: none; border: 0; padding: 0; cursor: pointer; touch-action:
 
 @media (max-height: 640px) {
   .stage { min-height: 190px; }
-  .time { font-size: 48px; }
+  .time { font-size: 56px; }
+  .kanji { font-size: 50px; }
   .lengths button, .custom input { height: 44px; }
   .row { min-height: 46px; }
   .actions button { min-height: 52px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .orb { transition-property: opacity; transition-duration: .8s; transform: scale(.8) !important; }
+  .orb-ring { transition: none; transform: none !important; }
   .controls, .stats { transition: none; }
   .sheet, .sheet::backdrop, .sheet.closing, .sheet.closing::backdrop { animation: none; }
   [data-state="done"] .seal { transition: opacity .25s; }
