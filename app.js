@@ -10,6 +10,8 @@
   const PATTERNS = {
     slow: [['Inhale', 6, 1], ['Exhale', 9, .55]], // same 2:3 as Relax, 15 s cycle = 4 breaths/min
     relax: [['Inhale', 4, 1], ['Exhale', 6, .55]], // longer exhale; default for new users
+    deep: [['Inhale', 8, 1], ['Exhale', 12, .55]], // same 2:3 again, 20 s cycle = 3 breaths/min
+    long: [['Inhale', 10, 1], ['Exhale', 15, .55]], // 25 s cycle = 2.4 breaths/min
     calm: [['Inhale', 5, 1], ['Exhale', 5, .55]],
     box: [['Inhale', 4, 1], ['Hold', 4, 1], ['Exhale', 4, .55], ['Hold', 4, .55]],
     sigh: [['Inhale', 1.5, .82], ['Sip', 1.5, 1], ['Exhale', 6, .55]], // cyclic sigh: two short inhales + long exhale

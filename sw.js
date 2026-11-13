@@ -1,4 +1,4 @@
-const CACHE = 'still-v13-zen';
+const CACHE = 'still-v14-zen';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json',
   'apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'favicon.png'];
 
