@@ -10,6 +10,8 @@
   const PATTERNS = {
     slow: [['Inhale', 6, 1], ['Exhale', 9, .55]], // same 2:3 as Relax, 15 s cycle = 4 breaths/min
     relax: [['Inhale', 4, 1], ['Exhale', 6, .55]], // longer exhale; default for new users
+    deep: [['Inhale', 8, 1], ['Exhale', 12, .55]], // same 2:3 again, 20 s cycle = 3 breaths/min
+    long: [['Inhale', 10, 1], ['Exhale', 15, .55]], // 25 s cycle = 2.4 breaths/min
     calm: [['Inhale', 5, 1], ['Exhale', 5, .55]],
     box: [['Inhale', 4, 1], ['Hold', 4, 1], ['Exhale', 4, .55], ['Hold', 4, .55]],
     sigh: [['Inhale', 1.5, .82], ['Sip', 1.5, 1], ['Exhale', 6, .55]], // cyclic sigh: two short inhales + long exhale
@@ -49,6 +51,7 @@
     while (days.has(localDate(cur.getTime()))) { streak++; cur.setDate(cur.getDate() - 1); }
     $('statStreak').textContent = streak;
     $('statCount').textContent = history.length;
+    $('statCount').nextSibling.textContent = history.length === 1 ? ' session' : ' sessions';
     $('statMinutes').textContent = Math.round(history.reduce((a, h) => a + h.s, 0) / 60);
     document.querySelector('.stats').style.visibility = history.length ? '' : 'hidden'; // first run: no row of zeros
     return streak;
@@ -73,6 +76,9 @@
     toneToggle.checked = settings.tone;
     intervalToggle.checked = settings.interval;
     breathToggle.checked = settings.breath;
+    $('breathSummary').textContent = document.querySelector('#patterns [aria-checked="true"]').dataset.short;
+    $('soundSummary').textContent = [settings.chime && 'Chimes', settings.interval && '5-min bell', settings.breath && 'Breath sound', settings.tone && 'Soft tone']
+      .filter(Boolean).join(' · ') || 'Silent';
     if (state === 'idle' || state === 'done') timeEl.textContent = fmt(settings.minutes * 60000);
   }
   $('durations').addEventListener('click', (e) => {
@@ -91,12 +97,25 @@
   $('patterns').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-pattern]'); if (!b) return;
     settings.pattern = b.dataset.pattern; save(SKEY, settings); renderSettings();
+    setTimeout(() => closeSheet($('breathSheet')), 220); // long enough to see the mark move
   });
-  chimeToggle.addEventListener('change', () => { settings.chime = chimeToggle.checked; save(SKEY, settings); audio(); scheduleBells(); });
-  intervalToggle.addEventListener('change', () => { settings.interval = intervalToggle.checked; save(SKEY, settings); audio(); scheduleBells(); });
-  breathToggle.addEventListener('change', () => { settings.breath = breathToggle.checked; save(SKEY, settings); audio(); cancelCues(); scheduleCues(true); });
+  // Breath and Sound open as bottom sheets, so the main screen stays empty.
+  function openSheet(d) { d.classList.remove('closing'); if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+  function closeSheet(d) {
+    if (!d.open || d.classList.contains('closing')) return;
+    d.classList.add('closing');
+    setTimeout(() => { d.classList.remove('closing'); if (d.close) d.close(); else d.removeAttribute('open'); }, reduceMotion.matches ? 0 : 200);
+  }
+  [['breathRow', 'breathSheet'], ['soundRow', 'soundSheet']].forEach(([row, sheet]) => {
+    const d = $(sheet);
+    $(row).addEventListener('click', () => openSheet(d));
+    d.addEventListener('click', (e) => { if (e.target === d || e.target.closest('[data-close]')) closeSheet(d); }); // Done, or a tap outside
+  });
+  chimeToggle.addEventListener('change', () => { settings.chime = chimeToggle.checked; save(SKEY, settings); renderSettings(); audio(); scheduleBells(); });
+  intervalToggle.addEventListener('change', () => { settings.interval = intervalToggle.checked; save(SKEY, settings); renderSettings(); audio(); scheduleBells(); });
+  breathToggle.addEventListener('change', () => { settings.breath = breathToggle.checked; save(SKEY, settings); renderSettings(); audio(); cancelCues(); scheduleCues(true); });
   toneToggle.addEventListener('change', () => {
-    settings.tone = toneToggle.checked; save(SKEY, settings); audio();
+    settings.tone = toneToggle.checked; save(SKEY, settings); renderSettings(); audio();
     if (state === 'running') settings.tone ? toneOn() : toneOff();
   });
 
