@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const app = $('app'), orb = $('orb'), timeEl = $('time'), cueEl = $('cue');
+  const app = $('app'), orb = $('orb'), ring = document.querySelector('.orb-ring'), timeEl = $('time'), cueEl = $('cue'), kanjiEl = $('kanji');
   const startBtn = $('startBtn'), endBtn = $('endBtn'), customMin = $('customMin');
   const chimeToggle = $('chimeToggle'), toneToggle = $('toneToggle'), intervalToggle = $('intervalToggle'), breathToggle = $('breathToggle');
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -285,6 +285,19 @@
   });
 
   // ---------- breathing ----------
+  // A brush kanji for each breath word, shown above it while sitting.
+  const KANJI = { Inhale: '吸', Sip: '吸', Exhale: '吐', Hold: '止', Settle: '静', Paused: '休', 'Breathe naturally': '息' };
+  function setCue(text) { cueEl.textContent = text; kanjiEl.textContent = KANJI[text] || ''; }
+  // The ensō turns with the breath: a set arc per inhale or exhale, still on a hold, so the turning keeps the rhythm.
+  // It also swells a little on the inhale. The angle only grows, so the CSS transition never spins back.
+  const TURN = 24;
+  let ringAngle = 0;
+  function turnRing(deg, scale, seconds) {
+    if (reduceMotion.matches) return;
+    ringAngle += deg;
+    ring.style.transitionDuration = `${seconds}s`;
+    ring.style.transform = `rotate(${ringAngle}deg) scale(${scale})`;
+  }
   function setOrb(scale, seconds) {
     if (reduceMotion.matches) {
       orb.style.transitionDuration = `${Math.min(seconds, 1.5)}s`;
@@ -304,19 +317,21 @@
   }
   function runPhase() {
     const pat = PATTERNS[settings.pattern];
-    if (!pat.length) { cueEl.textContent = 'Breathe naturally'; return; }
+    if (!pat.length) { setCue('Breathe naturally'); return; }
     const now = performance.now();
     while (phaseStart(phaseIdx + 1) <= now) phaseIdx++; // catch up if the page was asleep
     const [cue, , scale] = pat[phaseIdx % pat.length], left = Math.max(0, phaseStart(phaseIdx + 1) - now);
-    cueEl.textContent = cue;
+    setCue(cue);
     setOrb(scale, left / 1000);
+    turnRing(cue === 'Hold' ? 0 : TURN, scale >= 1 ? 1 : .95, left / 1000);
     if (settings.breath && cue !== 'Hold' && navigator.vibrate) try { navigator.vibrate(15); } catch {} // a light tap where supported (not iOS)
     phaseTimer = setTimeout(() => { phaseIdx++; runPhase(); }, left);
   }
   function stopBreathing(label) {
     clearTimeout(phaseTimer);
     setOrb(.55, 1.2);
-    cueEl.textContent = label;
+    turnRing(0, 1, 1.2);
+    setCue(label);
   }
 
   // ---------- timer ----------
@@ -351,7 +366,7 @@
     // let the opening chime land before the first inhale
     clearTimeout(phaseTimer);
     phaseTimer = setTimeout(runPhase, fresh ? 1500 : 0);
-    if (fresh) { cueEl.textContent = 'Settle'; setOrb(.55, 1.2); }
+    if (fresh) { setCue('Settle'); setOrb(.55, 1.2); }
   }
   function pause() {
     remainingMs = Math.max(0, endAt - Date.now());
@@ -366,8 +381,9 @@
     keepOff = setTimeout(() => keepAlive(false), 6000); // after the end chime has rung out
     const streak = logSession(secs);
     timeEl.textContent = secs < 60 ? '<1 min' : `${Math.round(secs / 60)} min`;
-    cueEl.textContent = streak ? `Complete · ${streak}-day streak` : 'Complete';
+    setCue(streak ? `Complete · ${streak}-day streak` : 'Complete');
     setOrb(1, 2.4);
+    turnRing(TURN * 1.5, 1, 2.4);
   }
   function end() {
     const secs = sat();
